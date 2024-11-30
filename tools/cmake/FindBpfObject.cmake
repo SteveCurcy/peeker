@@ -1,0 +1,3 @@
+if(BPFOBJECT_VMLINUX_H)
+  get_filename_component(GENERATED_VMLINUX_DIR ${BPFOBJECT_VMLINUX_H} DIRECTORY)
+endif()
