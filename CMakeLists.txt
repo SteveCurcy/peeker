@@ -6,7 +6,7 @@ project(peeker)
 # APPEND adds new elements to the end of the existing list variable.
 # CMAKE_CURRENT_SOURCE_DIR represents the full path to the directory
 #   containing the CMakeLists.txt or .cmake file currently being processed.
-list(APPEND CMAKE_MODULE_PATH $(CMAKE_CURRENT_SOURCE_DIR)/tools/cmake)
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/tools/cmake)
 
 # ExternalPeoject is a CMake's standard module, it provides tools for
 # building, downloading, and managing external projects as part of your
@@ -22,7 +22,7 @@ set(BPFOBJECT_VMLINUX_DIR ${INCLUDE_DIR})
 set(BPFOBJECT_BPFTOOL_EXE ${TOOL_DIR}/bpftool)
 set(BPFOBJECT_VMLINUX_H ${BPFOBJECT_VMLINUX_DIR}/vmlinux.h)
 set(LIBBPF_INCLUDE_DIRS ${INCLUDE_DIR})
-set(LIBBPF_LIBRARIES ${LIBRARY_DIR})
+set(LIBBPF_LIBRARIES ${LIBRARY_DIR}/libbpf.a)
 
 # To create the directorys if there is not.
 if(NOT EXISTS "${INCLUDE_DIR}")
@@ -117,4 +117,27 @@ elseif(${CMAKE_SYSTEM_PROCESSOR} MATCHES "loongarch64")
   set(ARCH "loongarch")
 endif()
 
-# find_package(BpfObject REQUIRED)
+find_package(BpfObject REQUIRED)
+
+# retrieves a list of files matching "*.bpf.c"
+file(GLOB apps ${CMAKE_CURRENT_SOURCE_DIR}/src/*.bpf.c)
+
+foreach(app ${apps})
+  # NAME_WE: Means "name without extension."
+  get_filename_component(app_stem ${app} NAME_WE)
+
+  # Build object skeleton and depend skeleton on libbpf build
+  bpf_object(${app_stem} ${app_stem}.bpf.c)
+  # Sets up build dependencies for the skeleton library ${app_stem}_skel
+  add_dependencies(${app_stem}_skel libbpf-build bpftool-build)
+
+  add_executable(${app_stem} ${CMAKE_CURRENT_SOURCE_DIR}/src/${app_stem}.c)
+  # Links the executable (${app_stem}) with its corresponding skeleton
+  # library (${app_stem}_skel), enabling the program to interact with
+  # the compiled BPF object.
+  target_link_libraries(${app_stem} ${app_stem}_skel)
+  # target_include_directories(${app_stem} PRIVATE
+  #   ${CMAKE_CURRENT_SOURCE_DIR}/../blazesym/include)
+  # target_link_libraries(${app_stem}
+  #   ${CMAKE_CURRENT_SOURCE_DIR}/../blazesym/target/release/libblazesym.a -lpthread -lrt -ldl)
+endforeach()
